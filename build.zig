@@ -1,8 +1,46 @@
 const std = @import("std");
 
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
+    // Run bison
+    bison: {
+        const update_parser = b.step("update-parser", "Runs system installed bison to regenerate src/asm/parser.c");
+
+        const version = parseBisonVersion(b) catch break :bison;
+        const flags_version = &[_][2]usize{
+            .{ 3, 5 },
+            .{ 3, 6 },
+            .{ 3, 0 },
+            .{ 3, 0 },
+            .{ 3, 0 },
+        };
+        const flags = &[_][]const u8{
+            "-Dapi.token.raw=true",
+            "-Dparse.error=detailed",
+            "-Dparse.error=verbose",
+            "-Dparse.lac=full",
+            "-Dlr.type=ielr",
+        };
+
+        const bison = b.addSystemCommand(&.{"bison"});
+        for (flags, flags_version) |flag, v| {
+            if (v[0] == version.major and v[1] == version.minor) {
+                bison.addArg(flag);
+            }
+        }
+        bison.addArg("-d");
+        bison.addArg("-Wall");
+        const parser_c = bison.addPrefixedOutputFileArg("--output=", "parser.c");
+        const parser_h = bison.addPrefixedOutputFileArg("--header=", "parser.h");
+        bison.addFileArg(.{ .path = "src/asm/parser.y" });
+
+        const write_files = b.addNamedWriteFiles("bison");
+        write_files.addCopyFileToSource(parser_c, "src/asm/parser.c");
+        write_files.addCopyFileToSource(parser_h, "src/asm/parser.h");
+        update_parser.dependOn(&write_files.step);
+    }
 
     {
         const exe = b.addExecutable(.{
@@ -78,6 +116,17 @@ pub fn build(b: *std.Build) void {
         const run = b.addRunArtifact(exe);
         run_step.dependOn(&run.step);
     }
+}
+
+fn parseBisonVersion(b: *std.Build) !std.SemanticVersion {
+    // First line of bison --version:
+    // bison (GNU Bison) 3.8.2
+    var out_code: u8 = 0;
+    const output = try b.runAllowFail(&.{ "bison", "--version" }, &out_code, .Ignore);
+    const first_line = std.mem.sliceTo(output, '\n');
+    var iter = std.mem.splitBackwardsScalar(u8, first_line, ' ');
+    const version_string = iter.next().?;
+    return std.SemanticVersion.parse(version_string);
 }
 
 const files_rgbasm = &[_][]const u8{
