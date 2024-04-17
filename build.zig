@@ -6,7 +6,7 @@ pub fn build(b: *std.Build) !void {
 
     // Run bison
     bison: {
-        const update_parser = b.step("update-parser", "Runs system installed bison to regenerate src/asm/parser.c");
+        const run_bison = b.step("run-bison", "Runs system installed bison to turn .y files into .cpp/.hpp");
 
         const version = parseBisonVersion(b) catch break :bison;
         const flags_version = &[_][2]usize{
@@ -24,22 +24,42 @@ pub fn build(b: *std.Build) !void {
             "-Dlr.type=ielr",
         };
 
-        const bison = b.addSystemCommand(&.{"bison"});
-        for (flags, flags_version) |flag, v| {
-            if (v[0] == version.major and v[1] == version.minor) {
-                bison.addArg(flag);
+        {
+            const bison = b.addSystemCommand(&.{"bison"});
+            for (flags, flags_version) |flag, v| {
+                if (v[0] == version.major and v[1] == version.minor) {
+                    bison.addArg(flag);
+                }
             }
-        }
-        bison.addArg("-d");
-        bison.addArg("-Wall");
-        const parser_c = bison.addPrefixedOutputFileArg("--output=", "parser.c");
-        const parser_h = bison.addPrefixedOutputFileArg("--header=", "parser.h");
-        bison.addFileArg(.{ .path = "src/asm/parser.y" });
+            bison.addArg("-d");
+            bison.addArg("-Wall");
+            const parser_c = bison.addPrefixedOutputFileArg("--output=", "parser.cpp");
+            const parser_h = bison.addPrefixedOutputFileArg("--header=", "parser.hpp");
+            bison.addFileArg(.{ .path = "src/asm/parser.y" });
 
-        const write_files = b.addNamedWriteFiles("bison");
-        write_files.addCopyFileToSource(parser_c, "src/asm/parser.c");
-        write_files.addCopyFileToSource(parser_h, "src/asm/parser.h");
-        update_parser.dependOn(&write_files.step);
+            const write_files = b.addNamedWriteFiles("bison parser");
+            write_files.addCopyFileToSource(parser_c, "src/asm/parser.cpp");
+            write_files.addCopyFileToSource(parser_h, "src/asm/parser.hpp");
+            run_bison.dependOn(&write_files.step);
+        }
+        {
+            const bison = b.addSystemCommand(&.{"bison"});
+            for (flags, flags_version) |flag, v| {
+                if (v[0] == version.major and v[1] == version.minor) {
+                    bison.addArg(flag);
+                }
+            }
+            bison.addArg("-d");
+            bison.addArg("-Wall");
+            const parser_c = bison.addPrefixedOutputFileArg("--output=", "script.cpp");
+            const parser_h = bison.addPrefixedOutputFileArg("--header=", "script.hpp");
+            bison.addFileArg(.{ .path = "src/link/script.y" });
+
+            const write_files = b.addNamedWriteFiles("bison script");
+            write_files.addCopyFileToSource(parser_c, "src/link/script.cpp");
+            write_files.addCopyFileToSource(parser_h, "src/link/script.hpp");
+            run_bison.dependOn(&write_files.step);
+        }
     }
 
     {
@@ -49,10 +69,11 @@ pub fn build(b: *std.Build) !void {
             .target = target,
             .optimize = optimize,
         });
+        exe.linkLibCpp();
         exe.addCSourceFiles(.{
             .files = files_rgbasm,
             .flags = &.{
-                "-std=gnu11",
+                "-std=c++2a",
             },
         });
         exe.addIncludePath(.{ .path = "src" });
@@ -74,10 +95,11 @@ pub fn build(b: *std.Build) !void {
             .target = target,
             .optimize = optimize,
         });
+        exe.linkLibCpp();
         exe.addCSourceFiles(.{
             .files = files_rgblink,
             .flags = &.{
-                "-std=gnu11",
+                "-std=c++2a",
             },
         });
         exe.addIncludePath(.{ .path = "src" });
@@ -99,10 +121,11 @@ pub fn build(b: *std.Build) !void {
             .target = target,
             .optimize = optimize,
         });
+        exe.linkLibCpp();
         exe.addCSourceFiles(.{
             .files = files_rgbfix,
             .flags = &.{
-                "-std=gnu11",
+                "-std=c++2a",
             },
         });
         exe.addIncludePath(.{ .path = "src" });
@@ -130,52 +153,53 @@ fn parseBisonVersion(b: *std.Build) !std.SemanticVersion {
 }
 
 const files_rgbasm = &[_][]const u8{
-    "src/asm/charmap.c",
-    "src/asm/fixpoint.c",
-    "src/asm/format.c",
-    "src/asm/fstack.c",
-    "src/asm/lexer.c",
-    "src/asm/macro.c",
-    "src/asm/main.c",
-    "src/asm/opt.c",
-    "src/asm/output.c",
-    "src/asm/parser.c",
-    "src/asm/rpn.c",
-    "src/asm/section.c",
-    "src/asm/symbol.c",
-    "src/asm/util.c",
-    "src/asm/warning.c",
-    "src/extern/getopt.c",
-    "src/extern/utf8decoder.c",
-    "src/error.c",
-    "src/hashmap.c",
-    "src/linkdefs.c",
-    "src/opmath.c",
-    "src/version.c",
+    "src/asm/charmap.cpp",
+    "src/asm/fixpoint.cpp",
+    "src/asm/format.cpp",
+    "src/asm/fstack.cpp",
+    "src/asm/lexer.cpp",
+    "src/asm/macro.cpp",
+    "src/asm/main.cpp",
+    "src/asm/opt.cpp",
+    "src/asm/output.cpp",
+    "src/asm/parser.cpp",
+    "src/asm/rpn.cpp",
+    "src/asm/section.cpp",
+    "src/asm/symbol.cpp",
+    "src/asm/warning.cpp",
+    "src/extern/getopt.cpp",
+    "src/extern/utf8decoder.cpp",
+    "src/error.cpp",
+    "src/hashmap.cpp",
+    "src/linkdefs.cpp",
+    "src/opmath.cpp",
+    "src/util.cpp",
+    "src/version.cpp",
 };
 
 const files_rgblink = &[_][]const u8{
-    "src/link/assign.c",
-    "src/link/main.c",
-    "src/link/object.c",
-    "src/link/output.c",
-    "src/link/patch.c",
-    "src/link/script.c",
-    "src/link/sdas_obj.c",
-    "src/link/section.c",
-    "src/link/symbol.c",
-    "src/extern/getopt.c",
-    "src/extern/utf8decoder.c",
-    "src/error.c",
-    "src/hashmap.c",
-    "src/linkdefs.c",
-    "src/opmath.c",
-    "src/version.c",
+    "src/link/assign.cpp",
+    "src/link/main.cpp",
+    "src/link/object.cpp",
+    "src/link/output.cpp",
+    "src/link/patch.cpp",
+    "src/link/script.cpp",
+    "src/link/sdas_obj.cpp",
+    "src/link/section.cpp",
+    "src/link/symbol.cpp",
+    "src/extern/getopt.cpp",
+    "src/extern/utf8decoder.cpp",
+    "src/error.cpp",
+    "src/hashmap.cpp",
+    "src/linkdefs.cpp",
+    "src/opmath.cpp",
+    "src/util.cpp",
+    "src/version.cpp",
 };
 
 const files_rgbfix = &[_][]const u8{
-    "src/fix/main.c",
-    "src/extern/getopt.c",
-    "src/error.c",
-    "src/version.c",
+    "src/fix/main.cpp",
+    "src/extern/getopt.cpp",
+    "src/error.cpp",
+    "src/version.cpp",
 };
