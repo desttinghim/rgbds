@@ -139,6 +139,42 @@ pub fn build(b: *std.Build) !void {
         const run = b.addRunArtifact(exe);
         run_step.dependOn(&run.step);
     }
+
+    {
+        const libpng_dep = b.dependency("libpng", .{
+            .target = target,
+            .optimize = optimize,
+        });
+
+        const exe = b.addExecutable(.{
+            .name = "rgbgfx",
+            .link_libc = true,
+            .target = target,
+            .optimize = optimize,
+        });
+        exe.linkLibrary(libpng_dep.artifact("png"));
+        exe.linkLibCpp();
+        exe.addCSourceFiles(.{
+            .files = files_rgbgfx,
+            .flags = &.{
+                "-std=c++2a",
+            },
+        });
+        exe.addIncludePath(.{ .path = "src" });
+        exe.addIncludePath(.{ .path = "include" });
+        exe.addIncludePath(.{ .path = "src/gfx" });
+
+        b.installArtifact(exe);
+
+        const run_step = b.step("gfx", "Run rgbgfx");
+
+        const run = b.addRunArtifact(exe);
+        run_step.dependOn(&run.step);
+
+        if (b.args) |args| {
+            run.addArgs(args);
+        }
+    }
 }
 
 fn parseBisonVersion(b: *std.Build) !std.SemanticVersion {
@@ -199,6 +235,20 @@ const files_rgblink = &[_][]const u8{
 
 const files_rgbfix = &[_][]const u8{
     "src/fix/main.cpp",
+    "src/extern/getopt.cpp",
+    "src/error.cpp",
+    "src/version.cpp",
+};
+
+const files_rgbgfx = &[_][]const u8{
+    "src/gfx/main.cpp",
+    "src/gfx/pal_packing.cpp",
+    "src/gfx/pal_sorting.cpp",
+    "src/gfx/pal_spec.cpp",
+    "src/gfx/process.cpp",
+    "src/gfx/proto_palette.cpp",
+    "src/gfx/reverse.cpp",
+    "src/gfx/rgba.cpp",
     "src/extern/getopt.cpp",
     "src/error.cpp",
     "src/version.cpp",

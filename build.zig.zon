@@ -1,6 +1,11 @@
 .{
     .name = "rgbds",
-    .version = "0.6.1", 
-    .dependencies = .{ },
-    .paths = .{ "" },
+    .version = "0.7.0",
+    .dependencies = .{
+        .libpng = .{
+            .url = "https://github.com/desttinghim/zig-build-libpng/archive/604d3a267cac46e64ee755a4f0c8bfea1c06693c.tar.gz",
+            .hash = "1220854cada6d2d092e1a959ddeed4f79be644f4ae97608e3efe57d5349c6b952f0e",
+        },
+    },
+    .paths = .{""},
 }
