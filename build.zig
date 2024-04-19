@@ -158,6 +158,7 @@ pub fn build(b: *std.Build) !void {
             .files = files_rgbgfx,
             .flags = &.{
                 "-std=c++2a",
+                "-fno-sanitize=undefined",
             },
         });
         exe.addIncludePath(.{ .path = "src" });
